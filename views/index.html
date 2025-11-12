@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Mur de messages</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f3f3f3;
+      margin: 0;
+      padding: 1rem;
+    }
+    h1 {
+      text-align: center;
+    }
+    #logout {
+      float: right;
+      margin-right: 1rem;
+      cursor: pointer;
+      color: red;
+    }
+    .post, .answer {
+      background: white;
+      border-radius: 8px;
+      padding: 1rem;
+      margin: 1rem auto;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+      max-width: 600px;
+    }
+    .answer {
+      margin-left: 2rem;
+      background: #f9f9f9;
+    }
+    form {
+      background: white;
+      border-radius: 8px;
+      padding: 1rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+      max-width: 600px;
+      margin: 1rem auto;
+    }
+    input, textarea, button {
+      width: 100%;
+      margin: 0.3rem 0;
+      padding: 0.5rem;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+    }
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+  </style>
+</head>
+<body>
+  <h1>💬 Mur de messages</h1>
+  <span id="logout" onclick="logout()">🚪 Déconnexion</span>
+
+  <form id="newPostForm">
+    <h3>Poster un nouveau message</h3>
+    <textarea id="message" placeholder="Écrivez votre message..." required></textarea>
+    <button type="submit">Publier</button>
+  </form>
+
+  <div id="posts"></div>
+
+  <script>
+    const username = localStorage.getItem('username');
+    if (!username) window.location.href = '/login';
+
+    const postsDiv = document.getElementById('posts');
+    const form = document.getElementById('newPostForm');
+
+    async function chargerPosts() {
+      postsDiv.innerHTML = '';
+      const res = await fetch('/api/posts');
+      const posts = await res.json();
+
+      posts.forEach(post => {
+        const div = document.createElement('div');
+        div.className = 'post';
+        div.innerHTML = `
+          <p><strong>${post.author}</strong> - ${new Date(post.creationDate).toLocaleString()}</p>
+          <p>${post.message}</p>
+          <div class="answers">
+            ${(post.answers || []).map(a => `
+              <div class="answer">
+                <p><strong>${a.author}</strong> - ${new Date(a.creationDate).toLocaleString()}</p>
+                <p>${a.message}</p>
+              </div>
+            `).join('')}
+          </div>
+          <form onsubmit="ajouterReponse(event, '${post._id}')">
+            <input type="text" name="message" placeholder="Votre réponse..." required>
+            <button type="submit">Répondre</button>
+          </form>
+        `;
+        postsDiv.appendChild(div);
+      });
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const message = document.getElementById('message').value.trim();
+      if (!message) return;
+
+      await fetch('/createMessage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ author: username, message })
+      });
+
+      form.reset();
+      chargerPosts();
+    });
+
+    async function ajouterReponse(e, postId) {
+      e.preventDefault();
+      const message = e.target.message.value.trim();
+      if (!message) return;
+
+      await fetch(`/createAnswer/${postId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ author: username, message })
+      });
+
+      chargerPosts();
+    }
+
+    function logout() {
+      localStorage.removeItem('username');
+      window.location.href = '/login';
+    }
+
+    chargerPosts();
+  </script>
+</body>
+</html>
