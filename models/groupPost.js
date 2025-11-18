@@ -4,9 +4,11 @@ const groupAnswerSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   message: String,
   image: String, // Base64
-  createdAt: { type: Date, default: Date.now },
-  answers: [this] // Réponses imbriquées
+  createdAt: { type: Date, default: Date.now }
 });
+
+// Ajout de la récursivité après la définition
+groupAnswerSchema.add({ answers: [groupAnswerSchema] });
 
 const groupPostSchema = new mongoose.Schema({
   group: { type: mongoose.Schema.Types.ObjectId, ref: 'Group', required: true },
