@@ -1,102 +1,108 @@
-// ----- IMPORTS -----
 import express from 'express';
 import mongoose from 'mongoose';
+import session from 'express-session';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import bodyParser from 'body-parser';
 
-// ----- CONFIGURATION -----
+// Controllers
+import authController from './controllers/authController.js';
+import postController from './controllers/postController.js';
+import userController from './controllers/userController.js';
+import groupController from './controllers/groupController.js';
+
+// Configuration
 const app = express();
 const PORT = 3000;
 
-// Pour que __dirname fonctionne avec ES modules :
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Middleware pour lire le JSON et les formulaires
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(bodyParser.json());
-
-// Indique à Express où trouver les fichiers statiques (HTML, CSS, JS)
+// Middleware
+app.use(express.json({ limit: '50mb' })); // Pour les images en base64
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'views')));
 
-// ----- CONNEXION MONGODB -----
+// Configuration session
+app.use(session({
+  secret: 'twitter-clone-secret-key-2024',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { 
+    secure: false, // mettre true en production avec HTTPS
+    maxAge: 1000 * 60 * 60 * 24 // 24 heures
+  }
+}));
+
+// Connexion MongoDB
 mongoose.connect('mongodb://127.0.0.1:27017/td1', {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
   .then(() => console.log('✅ Connecté à MongoDB'))
-  .catch((err) => console.error('Erreur MongoDB :', err));
+  .catch((err) => console.error('❌ Erreur MongoDB :', err));
 
-// ----- SCHEMAS MONGOOSE -----
-const answerSchema = new mongoose.Schema({
-  author: String,
-  message: String,
-  creationDate: { type: Date, default: Date.now }
+// Middleware de vérification d'authentification
+const requireAuth = (req, res, next) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ message: 'Non authentifié' });
+  }
+  next();
+};
+
+// Routes publiques (sans authentification)
+app.get('/signin', (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'signin.html'));
 });
 
-const postSchema = new mongoose.Schema({
-  author: String,
-  message: String,
-  creationDate: { type: Date, default: Date.now },
-  answers: [answerSchema]
+app.get('/signup', (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'signup.html'));
 });
 
-const Post = mongoose.model('Post', postSchema);
+app.post('/api/auth/signup', authController.signup);
+app.post('/api/auth/signin', authController.signin);
 
-// ----- ROUTES -----
+// Routes protégées (nécessitent authentification)
+app.use(requireAuth);
 
-// Page de connexion
-app.get('/login', (req, res) => {
-  res.sendFile(path.join(__dirname, 'views', 'login.html'));
-});
-
-// Page principale (mur)
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'index.html'));
 });
 
-// API : récupérer tous les posts
-app.get('/api/posts', async (req, res) => {
-  try {
-    const posts = await Post.find().sort({ creationDate: -1 });
-    res.json(posts);
-  } catch (err) {
-    res.status(500).json({ message: 'Erreur serveur', error: err });
-  }
+app.get('/profile', (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'profile.html'));
 });
 
-// API : créer un nouveau message
-app.post('/createMessage', async (req, res) => {
-  try {
-    const { author, message } = req.body;
-    const newPost = new Post({ author, message });
-    await newPost.save();
-    res.json({ success: true, post: newPost });
-  } catch (err) {
-    res.status(500).json({ message: 'Erreur lors de la création du message', error: err });
-  }
+app.get('/groups', (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'groups.html'));
 });
 
-// API : ajouter une réponse à un message
-app.post('/createAnswer/:postId', async (req, res) => {
-  try {
-    const { postId } = req.params;
-    const { author, message } = req.body;
-
-    const post = await Post.findById(postId);
-    if (!post) return res.status(404).json({ message: 'Post introuvable' });
-
-    post.answers.push({ author, message });
-    await post.save();
-
-    res.json({ success: true, post });
-  } catch (err) {
-    res.status(500).json({ message: 'Erreur lors de la création de la réponse', error: err });
-  }
+app.get('/group/:id', (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'group.html'));
 });
 
-// ----- LANCEMENT DU SERVEUR -----
+// API Routes - Auth
+app.post('/api/auth/logout', authController.logout);
+app.get('/api/auth/me', authController.getCurrentUser);
+
+// API Routes - Users
+app.get('/api/users/me', userController.getProfile);
+app.put('/api/users/me', userController.updateProfile);
+app.get('/api/users/search', userController.searchUsers);
+
+// API Routes - Posts
+app.get('/api/posts', postController.getAllPosts);
+app.post('/api/posts', postController.createPost);
+app.post('/api/posts/:postId/answers', postController.createAnswer);
+
+// API Routes - Groups
+app.get('/api/groups', groupController.getAllGroups);
+app.post('/api/groups', groupController.createGroup);
+app.get('/api/groups/:groupId', groupController.getGroup);
+app.post('/api/groups/:groupId/posts', groupController.createGroupPost);
+app.get('/api/groups/:groupId/posts', groupController.getGroupPosts);
+app.post('/api/groups/:groupId/posts/:postId/answers', groupController.createGroupAnswer);
+
+// Démarrage du serveur
 app.listen(PORT, () => {
   console.log(`🚀 Serveur lancé sur http://localhost:${PORT}`);
 });

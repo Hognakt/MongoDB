@@ -1,16 +1,19 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
-const postSchema = new mongoose.Schema({
+const answerSchema = new mongoose.Schema({
+  author: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   message: String,
-  author: String,
+  image: String, // Base64
   creationDate: { type: Date, default: Date.now },
-  answers: [
-    {
-      message: String,
-      author: String,
-      creationDate: { type: Date, default: Date.now }
-    }
-  ]
+  answers: [this] // Réponses imbriquées
 });
 
-module.exports = mongoose.model('Post', postSchema);
+const postSchema = new mongoose.Schema({
+  author: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  message: String,
+  image: String, // Base64
+  creationDate: { type: Date, default: Date.now },
+  answers: [answerSchema]
+});
+
+export default mongoose.model('Post', postSchema);

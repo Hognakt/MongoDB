@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Mon Profil</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f0f2f5;
+    }
+    nav {
+      background: white;
+      padding: 1rem 2rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    nav h1 { color: #667eea; }
+    nav a {
+      margin: 0 10px;
+      text-decoration: none;
+      color: #333;
+      font-weight: 500;
+    }
+    nav a:hover { color: #667eea; }
+    .container {
+      max-width: 600px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+    .profile-card {
+      background: white;
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .avatar-large {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      object-fit: cover;
+      margin: 0 auto 1.5rem;
+      display: block;
+      border: 4px solid #667eea;
+    }
+    input {
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+    }
+    input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    .btn {
+      width: 100%;
+      padding: 12px;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: background 0.3s;
+    }
+    .btn:hover { background: #5568d3; }
+    .success {
+      background: #d4edda;
+      color: #155724;
+      padding: 10px;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <h1>🐦 TwitterClone</h1>
+    <div>
+      <a href="/">Accueil</a>
+      <a href="/profile">Profil</a>
+      <a href="/groups">Groupes</a>
+      <a href="#" onclick="logout()">Déconnexion</a>
+    </div>
+  </nav>
+
+  <div class="container">
+    <div class="profile-card">
+      <h2>👤 Mon Profil</h2>
+      <div id="success" class="success">Profil mis à jour avec succès !</div>
+      <form id="profileForm">
+        <img id="avatarPreview" class="avatar-large" src="">
+        <input type="file" id="avatarFile" accept="image/*">
+        <input type="text" id="firstname" placeholder="Prénom" required>
+        <input type="text" id="lastname" placeholder="Nom" required>
+        <input type="email" id="email" placeholder="Email" required>
+        <input type="password" id="password" placeholder="Nouveau mot de passe (laisser vide pour ne pas changer)">
+        <button type="submit" class="btn">Mettre à jour</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    let avatarBase64 = '';
+
+    async function loadProfile() {
+      const res = await fetch('/api/users/me');
+      const user = await res.json();
+      
+      document.getElementById('firstname').value = user.firstname;
+      document.getElementById('lastname').value = user.lastname;
+      document.getElementById('email').value = user.email;
+      document.getElementById('avatarPreview').src = user.avatar || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="120" height="120"%3E%3Crect fill="%23e0e0e0" width="120" height="120"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" fill="%23999" font-size="50"%3E👤%3C/text%3E%3C/svg%3E';
+      avatarBase64 = user.avatar || '';
+    }
+
+    document.getElementById('avatarFile').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          avatarBase64 = event.target.result;
+          document.getElementById('avatarPreview').src = avatarBase64;
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    document.getElementById('profileForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const data = {
+        firstname: document.getElementById('firstname').value,
+        lastname: document.getElementById('lastname').value,
+        email: document.getElementById('email').value,
+        avatar: avatarBase64
+      };
+      
+      const password = document.getElementById('password').value;
+      if (password) data.password = password;
+      
+      await fetch('/api/users/me', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      
+      document.getElementById('success').style.display = 'block';
+      document.getElementById('password').value = '';
+      setTimeout(() => {
+        document.getElementById('success').style.display = 'none';
+      }, 3000);
+    });
+
+    async function logout() {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      window.location.href = '/signin';
+    }
+
+    loadProfile();
+  </script>
+</body>
+</html>

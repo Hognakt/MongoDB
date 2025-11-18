@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Groupe</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f0f2f5;
+    }
+    nav {
+      background: white;
+      padding: 1rem 2rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    nav h1 { color: #667eea; }
+    nav a {
+      margin: 0 10px;
+      text-decoration: none;
+      color: #333;
+      font-weight: 500;
+    }
+    nav a:hover { color: #667eea; }
+    .container {
+      max-width: 700px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+    .group-header {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      margin-bottom: 2rem;
+    }
+    .post-form {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      margin-bottom: 2rem;
+    }
+    textarea {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      resize: vertical;
+      min-height: 80px;
+    }
+    .btn {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 10px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    .btn:hover { background: #5568d3; }
+    .post {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      margin-bottom: 1rem;
+    }
+    .post-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    .avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      object-fit: cover;
+      margin-right: 12px;
+    }
+    .post-author {
+      font-weight: bold;
+      color: #333;
+    }
+    .post-date {
+      color: #999;
+      font-size: 12px;
+    }
+    .post-image {
+      max-width: 100%;
+      border-radius: 8px;
+      margin: 1rem 0;
+    }
+    .answer {
+      margin-left: 2rem;
+      margin-top: 1rem;
+      padding-left: 1rem;
+      border-left: 3px solid #667eea;
+    }
+    input[type="file"] {
+      padding: 8px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <h1>🐦 TwitterClone</h1>
+    <div>
+      <a href="/">Accueil</a>
+      <a href="/profile">Profil</a>
+      <a href="/groups">Groupes</a>
+      <a href="#" onclick="logout()">Déconnexion</a>
+    </div>
+  </nav>
+
+  <div class="container">
+    <div class="group-header">
+      <h2 id="groupName"></h2>
+      <p id="groupInfo"></p>
+    </div>
+
+    <div class="post-form">
+      <h3>✍️ Nouveau message</h3>
+      <form id="postForm">
+        <textarea id="message" placeholder="Écrire dans le groupe..." required></textarea>
+        <input type="file" id="imageFile" accept="image/*">
+        <img id="imagePreview" style="max-width: 200px; display: none; margin-top: 10px; border-radius: 8px;">
+        <button type="submit" class="btn">Publier</button>
+      </form>
+    </div>
+
+    <div id="posts"></div>
+  </div>
+
+  <script>
+    const groupId = window.location.pathname.split('/').pop();
+    let imageBase64 = '';
+
+    document.getElementById('imageFile').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          imageBase64 = event.target.result;
+          document.getElementById('imagePreview').src = imageBase64;
+          document.getElementById('imagePreview').style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    async function loadGroup() {
+      const res = await fetch(`/api/groups/${groupId}`);
+      const group = await res.json();
+      
+      document.getElementById('groupName').textContent = '👥 ' + group.name;
+      document.getElementById('groupInfo').textContent = 
+        `${group.users.length} membre(s) - Créé par ${group.createdBy.firstname} ${group.createdBy.lastname}`;
+    }
+
+    async function loadPosts() {
+      const res = await fetch(`/api/groups/${groupId}/posts`);
+      const posts = await res.json();
+      
+      const postsDiv = document.getElementById('posts');
+      postsDiv.innerHTML = posts.map(post => renderPost(post)).join('');
+    }
+
+    function renderPost(post) {
+      const avatarSrc = post.user.avatar || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="48" height="48"%3E%3Crect fill="%23e0e0e0" width="48" height="48"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" fill="%23999" font-size="24"%3E👤%3C/text%3E%3C/svg%3E';
+      
+      return `
+        <div class="post">
+          <div class="post-header">
+            <img src="${avatarSrc}" class="avatar">
+            <div>
+              <div class="post-author">${post.user.firstname} ${post.user.lastname}</div>
+              <div class="post-date">${new Date(post.createdAt).toLocaleString()}</div>
+            </div>
+          </div>
+          <div class="post-content">${post.message}</div>
+          ${post.image ? `<img src="${post.image}" class="post-image">` : ''}
+          
+          ${(post.answers || []).map(a => renderAnswer(a)).join('')}
+          
+          <div style="margin-top: 1rem;">
+            <form onsubmit="addAnswer(event, '${post._id}')">
+              <textarea placeholder="Répondre..." required style="min-height: 50px;"></textarea>
+              <button type="submit" class="btn">Répondre</button>
+            </form>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderAnswer(answer) {
+      const avatarSrc = answer.user.avatar || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="36" height="36"%3E%3Crect fill="%23e0e0e0" width="36" height="36"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" fill="%23999" font-size="18"%3E👤%3C/text%3E%3C/svg%3E';
+      
+      return `
+        <div class="answer">
+          <div class="post-header">
+            <img src="${avatarSrc}" class="avatar" style="width: 36px; height: 36px;">
+            <div>
+              <div class="post-author">${answer.user.firstname} ${answer.user.lastname}</div>
+              <div class="post-date">${new Date(answer.createdAt).toLocaleString()}</div>
+            </div>
+          </div>
+          <div class="post-content">${answer.message}</div>
+          ${answer.image ? `<img src="${answer.image}" class="post-image">` : ''}
+          ${(answer.answers || []).map(a => renderAnswer(a)).join('')}
+        </div>
+      `;
+    }
+
+    document.getElementById('postForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const message = document.getElementById('message').value;
+      
+      await fetch(`/api/groups/${groupId}/posts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message, image: imageBase64 })
+      });
+      
+      document.getElementById('postForm').reset();
+      document.getElementById('imagePreview').style.display = 'none';
+      imageBase64 = '';
+      loadPosts();
+    });
+
+    async function addAnswer(e, postId) {
+      e.preventDefault();
+      const message = e.target.querySelector('textarea').value;
+      
+      await fetch(`/api/groups/${groupId}/posts/${postId}/answers`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message })
+      });
+      
+      loadPosts();
+    }
+
+    async function logout() {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      window.location.href = '/signin';
+    }
+
+    loadGroup();
+    loadPosts();
+  </script>
+</body>
+</html>

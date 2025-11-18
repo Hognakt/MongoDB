@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Groupes</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f0f2f5;
+    }
+    nav {
+      background: white;
+      padding: 1rem 2rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    nav h1 { color: #667eea; }
+    nav a {
+      margin: 0 10px;
+      text-decoration: none;
+      color: #333;
+      font-weight: 500;
+    }
+    nav a:hover { color: #667eea; }
+    .container {
+      max-width: 900px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+    .create-group {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      margin-bottom: 2rem;
+    }
+    input, select {
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+    }
+    .btn {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 10px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    .btn:hover { background: #5568d3; }
+    .groups-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.5rem;
+    }
+    .group-card {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      cursor: pointer;
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+    .group-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    }
+    .group-name {
+      font-size: 20px;
+      font-weight: bold;
+      color: #333;
+      margin-bottom: 0.5rem;
+    }
+    .group-info {
+      color: #666;
+      font-size: 14px;
+    }
+    .user-search {
+      position: relative;
+    }
+    .search-results {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: white;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      max-height: 200px;
+      overflow-y: auto;
+      z-index: 100;
+      display: none;
+    }
+    .search-result {
+      padding: 10px;
+      cursor: pointer;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .search-result:hover {
+      background: #f0f2f5;
+    }
+    .selected-users {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .user-tag {
+      background: #667eea;
+      color: white;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .user-tag span {
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <h1>🐦 TwitterClone</h1>
+    <div>
+      <a href="/">Accueil</a>
+      <a href="/profile">Profil</a>
+      <a href="/groups">Groupes</a>
+      <a href="#" onclick="logout()">Déconnexion</a>
+    </div>
+  </nav>
+
+  <div class="container">
+    <div class="create-group">
+      <h3>➕ Créer un nouveau groupe</h3>
+      <form id="createGroupForm">
+        <input type="text" id="groupName" placeholder="Nom du groupe" required>
+        <div class="user-search">
+          <input type="text" id="userSearch" placeholder="Rechercher des utilisateurs à ajouter...">
+          <div id="searchResults" class="search-results"></div>
+        </div>
+        <div id="selectedUsers" class="selected-users"></div>
+        <button type="submit" class="btn">Créer le groupe</button>
+      </form>
+    </div>
+
+    <h2>📁 Mes Groupes</h2>
+    <div id="groups" class="groups-grid"></div>
+  </div>
+
+  <script>
+    let selectedUserIds = [];
+    let selectedUsersData = [];
+    let searchTimeout;
+
+    document.getElementById('userSearch').addEventListener('input', (e) => {
+      clearTimeout(searchTimeout);
+      const query = e.target.value.trim();
+      
+      if (query.length < 2) {
+        document.getElementById('searchResults').style.display = 'none';
+        return;
+      }
+      
+      searchTimeout = setTimeout(async () => {
+        const res = await fetch(`/api/users/search?q=${encodeURIComponent(query)}`);
+        const users = await res.json();
+        
+        const resultsDiv = document.getElementById('searchResults');
+        resultsDiv.innerHTML = users.map(u => `
+          <div class="search-result" onclick="addUser('${u._id}', '${u.firstname}', '${u.lastname}')">
+            ${u.firstname} ${u.lastname} (${u.email})
+          </div>
+        `).join('');
+        resultsDiv.style.display = users.length > 0 ? 'block' : 'none';
+      }, 300);
+    });
+
+    function addUser(id, firstname, lastname) {
+      if (selectedUserIds.includes(id)) return;
+      
+      selectedUserIds.push(id);
+      selectedUsersData.push({ id, firstname, lastname });
+      updateSelectedUsers();
+      
+      document.getElementById('userSearch').value = '';
+      document.getElementById('searchResults').style.display = 'none';
+    }
+
+    function removeUser(id) {
+      selectedUserIds = selectedUserIds.filter(uid => uid !== id);
+      selectedUsersData = selectedUsersData.filter(u => u.id !== id);
+      updateSelectedUsers();
+    }
+
+    function updateSelectedUsers() {
+      const div = document.getElementById('selectedUsers');
+      div.innerHTML = selectedUsersData.map(u => `
+        <div class="user-tag">
+          ${u.firstname} ${u.lastname}
+          <span onclick="removeUser('${u.id}')">✕</span>
+        </div>
+      `).join('');
+    }
+
+    document.getElementById('createGroupForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('groupName').value;
+      
+      await fetch('/api/groups', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, users: selectedUserIds })
+      });
+      
+      document.getElementById('createGroupForm').reset();
+      selectedUserIds = [];
+      selectedUsersData = [];
+      updateSelectedUsers();
+      loadGroups();
+    });
+
+    async function loadGroups() {
+      const res = await fetch('/api/groups');
+      const groups = await res.json();
+      
+      const groupsDiv = document.getElementById('groups');
+      groupsDiv.innerHTML = groups.map(g => `
+        <div class="group-card" onclick="window.location.href='/group/${g._id}'">
+          <div class="group-name">👥 ${g.name}</div>
+          <div class="group-info">
+            ${g.users.length} membre(s)<br>
+            Créé par ${g.createdBy.firstname} ${g.createdBy.lastname}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function logout() {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      window.location.href = '/signin';
+    }
+
+    loadGroups();
+  </script>
+</body>
+</html>
