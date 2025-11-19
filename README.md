@@ -80,7 +80,7 @@ Cela installera :
 3. **Démarrer MongoDB**
 ```bash
 # Sur Windows
-net start MongoDB
+mongod
 
 # Sur macOS/Linux
 sudo systemctl start mongod
