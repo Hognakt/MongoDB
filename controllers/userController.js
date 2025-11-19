@@ -38,7 +38,9 @@ const userController = {
   async searchUsers(req, res) {
     try {
       const { q } = req.query;
+      // Exclure l'utilisateur courant des résultats
       const users = await User.find({
+        _id: { $ne: req.session.userId },
         $or: [
           { firstname: new RegExp(q, 'i') },
           { lastname: new RegExp(q, 'i') },

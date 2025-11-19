@@ -5,7 +5,6 @@ const authController = {
     try {
       const { firstname, lastname, email, password, avatar } = req.body;
 
-      // Vérifier si l'utilisateur existe déjà
       const existingUser = await User.findOne({ email });
       if (existingUser) {
         return res.status(400).json({ message: 'Email déjà utilisé' });

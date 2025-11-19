@@ -4,9 +4,10 @@ import GroupPost from '../models/groupPost.js';
 const groupController = {
   async getAllGroups(req, res) {
     try {
-      const groups = await Group.find()
+      // Retourner seulement les groupes de l'utilisateur
+      const groups = await Group.find({ users: req.session.userId })
         .populate('createdBy', 'firstname lastname')
-        .populate('users', 'firstname lastname avatar');
+        .populate('users', 'firstname lastname avatar email');
       res.json(groups);
     } catch (err) {
       res.status(500).json({ message: 'Erreur', error: err.message });
@@ -16,15 +17,22 @@ const groupController = {
   async createGroup(req, res) {
     try {
       const { name, users } = req.body;
+      
+      // Filtrer les utilisateurs pour exclure l'utilisateur courant
+      const filteredUsers = (users || []).filter(id => id !== req.session.userId.toString());
+      
       const group = new Group({
         name,
-        users: users || [],
+        users: filteredUsers,
         createdBy: req.session.userId
       });
-      group.users.push(req.session.userId); // Ajouter le créateur
+      
+      // Ajouter le créateur
+      group.users.push(req.session.userId);
+      
       await group.save();
       await group.populate('createdBy', 'firstname lastname');
-      await group.populate('users', 'firstname lastname avatar');
+      await group.populate('users', 'firstname lastname avatar email');
       res.json({ success: true, group });
     } catch (err) {
       res.status(500).json({ message: 'Erreur', error: err.message });
@@ -35,11 +43,49 @@ const groupController = {
     try {
       const group = await Group.findById(req.params.groupId)
         .populate('createdBy', 'firstname lastname')
-        .populate('users', 'firstname lastname avatar');
+        .populate('users', 'firstname lastname avatar email');
+      
       if (!group) {
         return res.status(404).json({ message: 'Groupe introuvable' });
       }
+
+      // Vérifier que l'utilisateur fait partie du groupe
+      if (!group.users.some(u => u._id.toString() === req.session.userId.toString())) {
+        return res.status(403).json({ message: 'Accès refusé' });
+      }
+
       res.json(group);
+    } catch (err) {
+      res.status(500).json({ message: 'Erreur', error: err.message });
+    }
+  },
+
+  async addMembersToGroup(req, res) {
+    try {
+      const { groupId } = req.params;
+      const { userIds } = req.body;
+
+      const group = await Group.findById(groupId);
+      if (!group) {
+        return res.status(404).json({ message: 'Groupe introuvable' });
+      }
+
+      // Vérifier que l'utilisateur est le créateur du groupe
+      if (group.createdBy.toString() !== req.session.userId.toString()) {
+        return res.status(403).json({ message: 'Vous n\'êtes pas autorisé à ajouter des membres' });
+      }
+
+      // Ajouter les utilisateurs qui ne sont pas déjà dans le groupe
+      const newUserIds = userIds.filter(id => 
+        !group.users.some(u => u.toString() === id.toString())
+      );
+
+      group.users.push(...newUserIds);
+      await group.save();
+      await group.populate('createdBy', 'firstname lastname');
+      await group.populate('users', 'firstname lastname avatar email');
+      
+      res.json({ success: true, group });
     } catch (err) {
       res.status(500).json({ message: 'Erreur', error: err.message });
     }
@@ -55,8 +101,7 @@ const groupController = {
         return res.status(404).json({ message: 'Groupe introuvable' });
       }
 
-      // Vérifier que l'utilisateur fait partie du groupe
-      if (!group.users.includes(req.session.userId)) {
+      if (!group.users.some(u => u.toString() === req.session.userId.toString())) {
         return res.status(403).json({ message: 'Vous ne faites pas partie de ce groupe' });
       }
 
@@ -76,7 +121,18 @@ const groupController = {
 
   async getGroupPosts(req, res) {
     try {
-      const posts = await GroupPost.find({ group: req.params.groupId })
+      const { groupId } = req.params;
+      
+      const group = await Group.findById(groupId);
+      if (!group) {
+        return res.status(404).json({ message: 'Groupe introuvable' });
+      }
+
+      if (!group.users.some(u => u.toString() === req.session.userId.toString())) {
+        return res.status(403).json({ message: 'Accès refusé' });
+      }
+
+      const posts = await GroupPost.find({ group: groupId })
         .populate('user', 'firstname lastname avatar')
         .populate('answers.user', 'firstname lastname avatar')
         .sort({ createdAt: -1 });
@@ -90,6 +146,15 @@ const groupController = {
     try {
       const { groupId, postId } = req.params;
       const { message, image, parentAnswerId } = req.body;
+
+      const group = await Group.findById(groupId);
+      if (!group) {
+        return res.status(404).json({ message: 'Groupe introuvable' });
+      }
+
+      if (!group.users.some(u => u.toString() === req.session.userId.toString())) {
+        return res.status(403).json({ message: 'Accès refusé' });
+      }
 
       const post = await GroupPost.findById(postId);
       if (!post) {

@@ -26,7 +26,7 @@
     }
     nav a:hover { color: #667eea; }
     .container {
-      max-width: 700px;
+      max-width: 900px;
       margin: 2rem auto;
       padding: 0 1rem;
     }
@@ -37,6 +37,148 @@
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
       margin-bottom: 2rem;
     }
+    .header-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      gap: 2rem;
+    }
+    .header-info h2 {
+      margin-bottom: 0.5rem;
+    }
+    .members-section {
+      flex: 1;
+    }
+    .members-section h3 {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 0.5rem;
+    }
+    .members-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 1rem;
+    }
+    .member-badge {
+      background: #f0f2f5;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 13px;
+    }
+    .member-badge.owner {
+      background: #667eea;
+      color: white;
+    }
+    .add-members-btn {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      margin-top: 0.5rem;
+    }
+    .add-members-btn:hover { background: #5568d3; }
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal.active {
+      display: flex;
+    }
+    .modal-content {
+      background: white;
+      padding: 2rem;
+      border-radius: 12px;
+      max-width: 500px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+    }
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      color: #666;
+    }
+    .user-search {
+      position: relative;
+      margin-bottom: 1rem;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+    }
+    .search-results {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: white;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      max-height: 200px;
+      overflow-y: auto;
+      z-index: 100;
+      display: none;
+      margin-top: 4px;
+    }
+    .search-result {
+      padding: 10px;
+      cursor: pointer;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .search-result:hover {
+      background: #f0f2f5;
+    }
+    .selected-new-users {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 1rem;
+    }
+    .user-tag {
+      background: #667eea;
+      color: white;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .user-tag span {
+      cursor: pointer;
+    }
+    .modal-btn {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      width: 100%;
+    }
+    .modal-btn:hover { background: #5568d3; }
     .post-form {
       background: white;
       padding: 1.5rem;
@@ -100,6 +242,12 @@
       padding-left: 1rem;
       border-left: 3px solid #667eea;
     }
+    .answer-form {
+      margin-top: 1rem;
+      background: #f9f9f9;
+      padding: 1rem;
+      border-radius: 8px;
+    }
     input[type="file"] {
       padding: 8px;
       margin-top: 10px;
@@ -119,8 +267,17 @@
 
   <div class="container">
     <div class="group-header">
-      <h2 id="groupName"></h2>
-      <p id="groupInfo"></p>
+      <div class="header-content">
+        <div class="header-info">
+          <h2 id="groupName"></h2>
+          <p id="groupInfo"></p>
+        </div>
+        <div class="members-section">
+          <h3>Membres du groupe</h3>
+          <div id="membersList" class="members-list"></div>
+          <button id="addMembersBtn" class="add-members-btn" style="display: none;">➕ Ajouter des membres</button>
+        </div>
+      </div>
     </div>
 
     <div class="post-form">
@@ -136,9 +293,36 @@
     <div id="posts"></div>
   </div>
 
+  <!-- Modal pour ajouter des membres -->
+  <div id="addMembersModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Ajouter des membres</h3>
+        <button class="modal-close" onclick="closeAddMembersModal()">✕</button>
+      </div>
+      <div class="user-search">
+        <input type="text" id="newMemberSearch" placeholder="Rechercher des utilisateurs...">
+        <div id="newMemberResults" class="search-results"></div>
+      </div>
+      <div id="selectedNewUsers" class="selected-new-users"></div>
+      <button class="modal-btn" onclick="submitAddMembers()">Ajouter les membres</button>
+    </div>
+  </div>
+
   <script>
     const groupId = window.location.pathname.split('/').pop();
     let imageBase64 = '';
+    let currentUserId = '';
+    let selectedNewUserIds = [];
+    let selectedNewUsersData = [];
+    let searchTimeout;
+
+    // Récupérer l'utilisateur actuel
+    async function getCurrentUser() {
+      const res = await fetch('/api/auth/me');
+      const user = await res.json();
+      currentUserId = user._id;
+    }
 
     document.getElementById('imageFile').addEventListener('change', (e) => {
       const file = e.target.files[0];
@@ -153,13 +337,103 @@
       }
     });
 
+    document.getElementById('newMemberSearch').addEventListener('input', (e) => {
+      clearTimeout(searchTimeout);
+      const query = e.target.value.trim();
+      
+      if (query.length < 2) {
+        document.getElementById('newMemberResults').style.display = 'none';
+        return;
+      }
+      
+      searchTimeout = setTimeout(async () => {
+        const res = await fetch(`/api/users/search?q=${encodeURIComponent(query)}`);
+        const users = await res.json();
+        
+        const resultsDiv = document.getElementById('newMemberResults');
+        resultsDiv.innerHTML = users.map(u => `
+          <div class="search-result" onclick="addNewMember('${u._id}', '${u.firstname}', '${u.lastname}')">
+            ${u.firstname} ${u.lastname} (${u.email})
+          </div>
+        `).join('');
+        resultsDiv.style.display = users.length > 0 ? 'block' : 'none';
+      }, 300);
+    });
+
+    function addNewMember(id, firstname, lastname) {
+      if (selectedNewUserIds.includes(id)) return;
+      
+      selectedNewUserIds.push(id);
+      selectedNewUsersData.push({ id, firstname, lastname });
+      updateSelectedNewUsers();
+      
+      document.getElementById('newMemberSearch').value = '';
+      document.getElementById('newMemberResults').style.display = 'none';
+    }
+
+    function removeNewMember(id) {
+      selectedNewUserIds = selectedNewUserIds.filter(uid => uid !== id);
+      selectedNewUsersData = selectedNewUsersData.filter(u => u.id !== id);
+      updateSelectedNewUsers();
+    }
+
+    function updateSelectedNewUsers() {
+      const div = document.getElementById('selectedNewUsers');
+      div.innerHTML = selectedNewUsersData.map(u => `
+        <div class="user-tag">
+          ${u.firstname} ${u.lastname}
+          <span onclick="removeNewMember('${u.id}')">✕</span>
+        </div>
+      `).join('');
+    }
+
+    function closeAddMembersModal() {
+      document.getElementById('addMembersModal').classList.remove('active');
+    }
+
+    async function submitAddMembers() {
+      if (selectedNewUserIds.length === 0) return;
+      
+      await fetch(`/api/groups/${groupId}/members`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userIds: selectedNewUserIds })
+      });
+      
+      selectedNewUserIds = [];
+      selectedNewUsersData = [];
+      updateSelectedNewUsers();
+      closeAddMembersModal();
+      loadGroup();
+    }
+
     async function loadGroup() {
       const res = await fetch(`/api/groups/${groupId}`);
+      if (!res.ok) {
+        window.location.href = '/groups';
+        return;
+      }
+      
       const group = await res.json();
       
       document.getElementById('groupName').textContent = '👥 ' + group.name;
       document.getElementById('groupInfo').textContent = 
-        `${group.users.length} membre(s) - Créé par ${group.createdBy.firstname} ${group.createdBy.lastname}`;
+        `Créé par ${group.createdBy.firstname} ${group.createdBy.lastname}`;
+      
+      // Afficher les membres
+      const membersList = document.getElementById('membersList');
+      membersList.innerHTML = group.users.map(u => `
+        <div class="member-badge ${u._id === group.createdBy._id ? 'owner' : ''}">
+          ${u.firstname} ${u.lastname}${u._id === group.createdBy._id ? ' 👑' : ''}
+        </div>
+      `).join('');
+      
+      // Afficher le bouton pour ajouter des membres si on est le créateur
+      const addBtn = document.getElementById('addMembersBtn');
+      if (group.createdBy._id === currentUserId) {
+        addBtn.style.display = 'block';
+        addBtn.onclick = () => document.getElementById('addMembersModal').classList.add('active');
+      }
     }
 
     async function loadPosts() {
@@ -187,9 +461,11 @@
           
           ${(post.answers || []).map(a => renderAnswer(a)).join('')}
           
-          <div style="margin-top: 1rem;">
+          <div class="answer-form">
             <form onsubmit="addAnswer(event, '${post._id}')">
               <textarea placeholder="Répondre..." required style="min-height: 50px;"></textarea>
+              <input type="file" class="answer-image-file" accept="image/*">
+              <img class="answer-image-preview" style="max-width: 150px; display: none; margin-top: 8px; border-radius: 6px;">
               <button type="submit" class="btn">Répondre</button>
             </form>
           </div>
@@ -234,12 +510,23 @@
 
     async function addAnswer(e, postId) {
       e.preventDefault();
-      const message = e.target.querySelector('textarea').value;
+      const form = e.target;
+      const message = form.querySelector('textarea').value;
+      const imageFile = form.querySelector('.answer-image-file');
+      
+      let answerImage = '';
+      if (imageFile.files.length > 0) {
+        const reader = new FileReader();
+        answerImage = await new Promise((resolve) => {
+          reader.onload = (event) => resolve(event.target.result);
+          reader.readAsDataURL(imageFile.files[0]);
+        });
+      }
       
       await fetch(`/api/groups/${groupId}/posts/${postId}/answers`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message })
+        body: JSON.stringify({ message, image: answerImage })
       });
       
       loadPosts();
@@ -250,8 +537,10 @@
       window.location.href = '/signin';
     }
 
-    loadGroup();
-    loadPosts();
+    getCurrentUser().then(() => {
+      loadGroup();
+      loadPosts();
+    });
   </script>
 </body>
 </html>

@@ -98,6 +98,7 @@ app.post('/api/posts/:postId/answers', postController.createAnswer);
 app.get('/api/groups', groupController.getAllGroups);
 app.post('/api/groups', groupController.createGroup);
 app.get('/api/groups/:groupId', groupController.getGroup);
+app.post('/api/groups/:groupId/members', groupController.addMembersToGroup); // ← AJOUTER CETTE LIGNE
 app.post('/api/groups/:groupId/posts', groupController.createGroupPost);
 app.get('/api/groups/:groupId/posts', groupController.getGroupPosts);
 app.post('/api/groups/:groupId/posts/:postId/answers', groupController.createGroupAnswer);

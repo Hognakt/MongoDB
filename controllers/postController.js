@@ -46,7 +46,6 @@ const postController = {
         answers: []
       };
 
-      // Si c'est une réponse à une réponse
       if (parentAnswerId) {
         const findAndAddAnswer = (answers) => {
           for (let a of answers) {
